@@ -36,7 +36,7 @@ ID_to_DIRNAME={
 }
 
 def build_dataset(set_id, transform, data_root, mode='test', n_shot=None, split="all", bongard_anno=False):
-    if set_id == 'I':
+    if set_id in ['I', 'caltech101', 'dtd', 'food101', 'cars', 'sun397']:
         # ImageNet validation set
         testdir = os.path.join(os.path.join(data_root, ID_to_DIRNAME[set_id]), 'val')
         testset = datasets.ImageFolder(testdir, transform=transform)
