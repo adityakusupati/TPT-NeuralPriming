@@ -9,6 +9,7 @@ import torch
 from PIL import Image
 from torchvision.transforms import Compose, Resize, CenterCrop, ToTensor, Normalize
 from tqdm import tqdm
+import open_clip
 
 from .model import build_model
 from .simple_tokenizer import SimpleTokenizer as _Tokenizer
@@ -36,6 +37,7 @@ _MODELS = {
     "ViT-B/32": "https://openaipublic.azureedge.net/clip/models/40d365715913c9da98579312b702a82c18be219cc2a73407c4526f58eba950af/ViT-B-32.pt",
     "ViT-B/16": "https://openaipublic.azureedge.net/clip/models/5806e77cd80f8b59890b7e101eabd078d9fb84e6937f9e85e4ecb61988df416f/ViT-B-16.pt",
     "ViT-L/14": "https://openaipublic.azureedge.net/clip/models/b8cca3fd41ae0c99ba7e8951adf17d267cdb84cd88be6f7c2e0eca1737a03836/ViT-L-14.pt",
+    "OpenCLIP-ViT-B/16": "None",
 }
 
 
@@ -115,16 +117,24 @@ def load(name: str, device: Union[str, torch.device] = "cuda" if torch.cuda.is_a
     preprocess : Callable[[PIL.Image], torch.Tensor]
         A torchvision transform that converts a PIL image into a tensor that the returned model can take as its input
     """
-    if name in _MODELS:
-        model_path = _download(_MODELS[name], download_root or os.path.expanduser("~/.cache/clip"))
-    elif os.path.isfile(name):
-        model_path = name
-    else:
-        raise RuntimeError(f"Model {name} not found; available models = {available_models()}")
+    if "OpenCLIP" not in name:
+        if name in _MODELS:
+            model_path = _download(_MODELS[name], download_root or os.path.expanduser("~/.cache/clip"))
+        elif os.path.isfile(name):
+            model_path = name
+        else:
+            raise RuntimeError(f"Model {name} not found; available models = {available_models()}")
 
     try:
         # loading JIT archive
-        model = torch.jit.load(model_path, map_location=device if jit else "cpu").eval()
+        if "OpenCLIP" in name:
+            model, _, preprocess = open_clip.create_model_and_transforms('ViT-B-16', pretrained='laion2b_s34b_b88k', device="cpu")
+            model.eval()
+            print("Using Open Clip")
+        else:
+            model = torch.jit.load(model_path, map_location=device if jit else "cpu").eval()
+            print("Using OpenAI Clip")
+
         state_dict = None
     except RuntimeError:
         # loading saved state dict
